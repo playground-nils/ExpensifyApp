@@ -11738,6 +11738,7 @@ export {
     isWorkspaceTaskReport,
     isWorkspaceThread,
     isMoneyRequestReportEligibleForMerge,
+    getReportOrDraftReport,
     getReportStatusTranslation,
 };
 

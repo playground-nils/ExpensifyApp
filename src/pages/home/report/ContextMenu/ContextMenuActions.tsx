@@ -87,6 +87,8 @@ import {
     isTripPreview,
     isUnapprovedAction,
     isWhisperAction as isWhisperActionReportActionsUtils,
+    getAllReportActions,
+    getLinkedTransaction,
 } from '@libs/ReportActionsUtils';
 import {
     canDeleteReportAction,
@@ -104,6 +106,8 @@ import {
     getReimbursementQueuedActionMessage,
     getRejectedReportMessage,
     getReportName,
+    getReportOrDraftReport,
+    getReportOrDraftReport,
     getReportPreviewMessage,
     getUpgradeWorkspaceMessage,
     getWorkspaceNameUpdatedMessage,
@@ -828,18 +832,34 @@ const ContextMenuActions: ContextMenuAction[] = [
         isAnonymousAction: false,
         textTranslateKey: 'reportActionContextMenu.deleteAction',
         icon: Expensicons.Trashcan,
-        shouldShow: ({type, reportAction, isArchivedRoom, isChronosReport, reportID, moneyRequestAction, iouTransaction}) =>
+        shouldShow: ({type, reportAction, isArchivedRoom, isChronosReport, reportID, moneyRequestAction, iouTransaction}) => {
+            let action = moneyRequestAction ?? reportAction;
+            let id = reportID;
+            let transaction = iouTransaction;
+
+            if (isReportPreviewActionReportActionsUtils(action)) {
+                const iouReportID = getIOUReportIDFromReportActionPreview(action);
+                const iouReport = getReportOrDraftReport(iouReportID);
+                if (iouReport) {
+                    const iouReportActions = getAllReportActions(iouReportID);
+                    const iouAction = Object.values(iouReportActions).find(isMoneyRequestAction);
+                    if (iouAction) {
+                        action = iouAction;
+                        id = iouReportID;
+                        transaction = getLinkedTransaction(iouAction);
+                    }
+                }
+            }
             // Until deleting parent threads is supported in FE, we will prevent the user from deleting a thread parent
-            !!reportID &&
-            type === CONST.CONTEXT_MENU_TYPES.REPORT_ACTION &&
-            canDeleteReportAction(
-                moneyRequestAction ?? reportAction,
-                isMoneyRequestAction(moneyRequestAction) ? getOriginalMessage(moneyRequestAction)?.IOUReportID : reportID,
-                iouTransaction,
-            ) &&
-            !isArchivedRoom &&
-            !isChronosReport &&
-            !isMessageDeleted(reportAction),
+            return (
+                !!id &&
+                type === CONST.CONTEXT_MENU_TYPES.REPORT_ACTION &&
+                canDeleteReportAction(action, id, transaction) &&
+                !isArchivedRoom &&
+                !isChronosReport &&
+                !isMessageDeleted(reportAction)
+            );
+        },
         onPress: (closePopover, {reportID: reportIDParam, reportAction, moneyRequestAction}) => {
             // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
             const reportID = isMoneyRequestAction(moneyRequestAction) ? getOriginalMessage(moneyRequestAction)?.IOUReportID || reportIDParam : reportIDParam;
